@@ -1,0 +1,58 @@
+
+{
+  "name": "Calmify - Maternidad en Calma",
+  "short_name": "Calmify",
+  "description": "Podcasts, meditaciones y autohipnosis para una maternidad consciente",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#3B82F6",
+  "orientation": "portrait-primary",
+  "categories": ["health", "lifestyle", "education"],
+  "lang": "es",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "320x640",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Reproducir último episodio",
+      "short_name": "Reproducir",
+      "description": "Continúa escuchando tu último episodio",
+      "url": "/player",
+      "icons": [{ "src": "/play-icon.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Explorar categorías",
+      "short_name": "Explorar",
+      "description": "Descubre nuevos contenidos por categoría",
+      "url": "/categories",
+      "icons": [{ "src": "/explore-icon.png", "sizes": "96x96" }]
+    }
+  ]
+}

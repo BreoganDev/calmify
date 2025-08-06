@@ -1,0 +1,12 @@
+# Ignorar dependencias y build
+node_modules/
+.next/
+
+# Ignorar archivos de entorno
+.env
+.env.*.local
+
+# Ignorar logs y metadatos de Windows
+npm-debug.log*
+*.log
+Thumbs.db
