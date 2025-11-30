@@ -3,7 +3,6 @@
 
 import { useState } from 'react'
 import { Session } from 'next-auth'
-import { Audio, Category, Cover } from '@prisma/client'
 import { AudioCard } from '@/components/audio/audio-card'
 import { CategoryCard } from '@/components/categories/category-card'
 import { Button } from '@/components/ui/button'
@@ -12,12 +11,25 @@ import { Badge } from '@/components/ui/badge'
 import { TrendingUp, Clock, Star } from 'lucide-react'
 import Link from 'next/link'
 
-type AudioWithDetails = Audio & {
-  cover?: Cover | null
-  category: Category
+type AudioWithDetails = {
+  id: string
+  title: string
+  description?: string | null
+  duration?: number | null
+  listens?: number | null
+  author?: string | null
+  categoryId?: string | null
+  cover?: { url?: string | null } | null
+  category: { id?: string; name: string; color?: string | null }
+  [key: string]: any
 }
 
-type CategoryWithCount = Category & {
+type CategoryWithCount = {
+  id: string
+  name: string
+  description?: string | null
+  type?: string | null
+  color?: string | null
   _count: { audios: number }
 }
 
@@ -51,9 +63,9 @@ export function HomeContent({
           </Button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {categories.map((category) => (
-            <CategoryCard key={category.id} category={category} />
-          ))}
+            {categories.map((category) => (
+              <CategoryCard key={category.id} category={category} />
+            ))}
         </div>
       </section>
 
@@ -146,7 +158,7 @@ export function HomeContent({
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-purple-600 mb-2">
-                  {featuredAudios.reduce((sum, audio) => sum + audio.listens, 0)}
+                  {featuredAudios.reduce((sum, audio) => sum + (audio.listens || 0), 0)}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   Total Reproducciones

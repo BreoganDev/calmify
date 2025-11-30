@@ -5,8 +5,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { logEvent } from '@/lib/analytics'
+import {  } from '@prisma/client'
 
-export async function GET(request: NextRequest) {
+export async function GET(request : Request) {
   const session = await getServerSession(authOptions)
   
   if (!session?.user?.id) {
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ favorites })
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request : Request) {
   const session = await getServerSession(authOptions)
   
   if (!session?.user?.id) {
@@ -77,6 +79,11 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    logEvent('FAVORITE_ADDED' as any, {
+      userId: session.user.id,
+      audioId,
+    }).catch(() => {})
+
     return NextResponse.json({ success: true, favorite })
   } catch (error: any) {
     console.error('Error creating favorite:', error)
@@ -87,7 +94,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE(request : Request) {
   const session = await getServerSession(authOptions)
   
   if (!session?.user?.id) {
@@ -109,6 +116,11 @@ export async function DELETE(request: NextRequest) {
         },
       },
     })
+
+    logEvent('FAVORITE_REMOVED' as any, {
+      userId: session.user.id,
+      audioId,
+    }).catch(() => {})
 
     return NextResponse.json({ success: true })
   } catch (error) {

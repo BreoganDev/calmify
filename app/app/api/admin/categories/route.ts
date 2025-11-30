@@ -1,8 +1,8 @@
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'COLLABORATOR')) {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -40,7 +40,7 @@ export async function GET() {
 }
 
 // POST /api/admin/categories
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT /api/admin/categories
-export async function PUT(request: NextRequest) {
+export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -126,7 +126,7 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE /api/admin/categories
-export async function DELETE(request: NextRequest) {
+export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
 

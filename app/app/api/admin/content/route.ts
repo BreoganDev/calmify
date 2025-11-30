@@ -1,26 +1,31 @@
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { sendContentPendingNotification } from '@/lib/email';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
 export const dynamic = 'force-dynamic';
 
+function isAdminOrCollaborator(session: any) {
+  return session && (session.user.role === 'ADMIN' || session.user.role === 'COLLABORATOR');
+}
+
 // GET /api/admin/content
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!isAdminOrCollaborator(session)) {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
       );
     }
-
+    const role = session!.user.role;
     const audios = await prisma.audio.findMany({
       include: {
         category: true,
@@ -46,16 +51,17 @@ export async function GET() {
 }
 
 // POST /api/admin/content
-export async function POST(request: NextRequest) {
+export async function POST(request : Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!isAdminOrCollaborator(session)) {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
       );
     }
+    const role = session!.user.role;
 
     const formData = await request.formData();
     const title = formData.get('title') as string;
@@ -120,13 +126,21 @@ export async function POST(request: NextRequest) {
         fileSize: audioFile.size,
         coverId,
         categoryId,
-        isPublished: true,
+        isPublished: role === 'ADMIN',
       },
       include: {
         category: true,
         cover: true,
       },
     });
+
+    if (role === 'COLLABORATOR') {
+      await sendContentPendingNotification({
+        title,
+        collaboratorEmail: session?.user?.email || undefined,
+        author,
+      });
+    }
 
     return NextResponse.json(audio);
   } catch (error) {
@@ -139,11 +153,11 @@ export async function POST(request: NextRequest) {
 }
 
 // PUT /api/admin/content
-export async function PUT(request: NextRequest) {
+export async function PUT(request : Request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!isAdminOrCollaborator(session)) {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -216,6 +230,10 @@ export async function PUT(request: NextRequest) {
       updateData.coverId = cover.id;
     }
 
+    if (session && session.user?.role === 'COLLABORATOR') {
+      updateData.isPublished = false;
+    }
+
     const audio = await prisma.audio.update({
       where: { id },
       data: updateData,
@@ -236,7 +254,7 @@ export async function PUT(request: NextRequest) {
 }
 
 // DELETE /api/admin/content
-export async function DELETE(request: NextRequest) {
+export async function DELETE(request : Request) {
   try {
     const session = await getServerSession(authOptions);
 

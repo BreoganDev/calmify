@@ -14,7 +14,7 @@ export const CATEGORY_ICONS = {
 export const CATEGORY_NAMES = {
   PODCAST: 'Podcasts',
   MEDITATION: 'Meditaciones',
-  HYPNOSIS: 'Autohipnosis',
+  HYPNOSIS: 'reconexión',
 } as const;
 
 export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB

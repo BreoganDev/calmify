@@ -3,7 +3,7 @@ export interface User {
   id: string;
   name?: string;
   email: string;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'ADMIN' | 'COLLABORATOR';
   createdAt: Date;
   updatedAt: Date;
   isAdmin?: boolean; // Helper property

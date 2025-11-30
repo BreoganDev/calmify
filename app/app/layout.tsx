@@ -4,14 +4,16 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { Header } from '@/components/layout/header';
+import { Footer } from '@/components/layout/footer';
 import { AudioPlayer } from '@/components/audio/audio-player';
+import { CookieBanner } from '@/components/layout/cookie-banner';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Calmify - Podcasts, Meditación y Autohipnosis',
-  description: 'Descubre una nueva forma de bienestar mental con Calmify. Podcasts inspiradores, meditaciones guiadas y sesiones de autohipnosis para transformar tu día a día.',
-  keywords: 'podcast, meditación, autohipnosis, bienestar, mindfulness, relajación, crecimiento personal',
+  title: 'Calmify - Podcasts, Meditación y reconexión',
+  description: 'Descubre una nueva forma de bienestar mental con Calmify. Podcasts inspiradores, meditaciones guiadas y sesiones de reconexión para transformar tu día a día.',
+  keywords: 'podcast, meditación, reconexión, bienestar, mindfulness, relajación, crecimiento personal',
   authors: [{ name: 'Calmify Team' }],
   creator: 'Calmify',
   publisher: 'Calmify',
@@ -35,7 +37,7 @@ export const metadata: Metadata = {
     type: 'website',
     siteName: 'Calmify',
     title: 'Calmify - Tu compañero de bienestar mental',
-    description: 'Podcasts, meditaciones y autohipnosis para una vida más plena y consciente.',
+    description: 'Podcasts, meditaciones y reconexión para una vida más plena y consciente.',
     images: [
       {
         url: '/og-image.png',
@@ -48,8 +50,11 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Calmify - Tu compañero de bienestar mental',
-    description: 'Podcasts, meditaciones y autohipnosis para una vida más plena y consciente.',
+    description: 'Podcasts, meditaciones y reconexión para una vida más plena y consciente.',
     images: ['/og-image.png'],
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
   },
 };
 
@@ -72,12 +77,14 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className={inter.className}>
         <Providers>
-          <div className="min-h-screen bg-background">
+          <div className="min-h-screen bg-background flex flex-col">
             <Header />
-            <main className="pb-20">
+            <main className="flex-1 pb-20">
               {children}
             </main>
+            <Footer />
             <AudioPlayer />
+            <CookieBanner />
           </div>
         </Providers>
       </body>

@@ -1,9 +1,12 @@
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { sendWelcomeEmail, sendAdminNewUserEmail, generateVerificationToken, sendVerificationEmail } from '@/lib/email';
+import { logEvent } from '@/lib/analytics';
+import { ensureContact } from '@/lib/crm';
 
-export async function POST(request: NextRequest) {
+export async function POST(request : Request) {
   try {
     const { name, email, password } = await request.json();
 
@@ -29,7 +32,7 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
+    // Create user (unverified by default)
     const user = await prisma.user.create({
       data: {
         name,
@@ -39,8 +42,37 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const { token, expires } = generateVerificationToken();
+
+    await prisma.verificationToken.create({
+      data: {
+        identifier: email,
+        token,
+        expires,
+      },
+    });
+
+    // Crear contacto CRM antes de los envíos
+    await ensureContact({ userId: user.id, email: user.email, name: user.name || undefined, role: user.role }).catch((err) => {
+      console.warn('No se pudo crear contacto CRM', err);
+    });
+
+    // Enviar correos y registrar evento (tolerantes a fallo)
+    await Promise.allSettled([
+      sendWelcomeEmail(user.email, user.name || undefined),
+      sendVerificationEmail(user.email, token),
+      sendAdminNewUserEmail({ email: user.email, name: user.name || undefined }),
+      (async () => {
+        try {
+          await logEvent('SIGNUP' as any, { userId: user.id, metadata: { email: user.email } });
+        } catch (err) {
+          console.warn('No se pudo registrar evento SIGNUP', err);
+        }
+      })(),
+    ]);
+
     return NextResponse.json({
-      message: 'Usuario creado exitosamente',
+      message: 'Usuario creado. Revisa tu correo para confirmar la cuenta.',
       user: {
         id: user.id,
         name: user.name,

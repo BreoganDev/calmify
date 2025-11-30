@@ -11,7 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useAudio } from '@/contexts/audio-context';
 import { ArrowLeft, Play, Pause, Trash2, Music, Clock, Globe, Lock } from 'lucide-react';
 import { Playlist, Audio } from '@/lib/types';
-import { formatTime } from '@/lib/utils';
+import { formatTime, cn } from '@/lib/utils';
+import { DeleteConfirmDialog } from '@/components/ui/confirm-dialog';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function PlaylistDetailPage() {
   const params = useParams();
@@ -22,6 +24,10 @@ export default function PlaylistDetailPage() {
   
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Estados para confirmación de eliminación
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -65,32 +71,33 @@ export default function PlaylistDetailPage() {
     }
   };
 
+  const buildQueue = () =>
+    (playlist?.items || [])
+      .map((item) => item.audio)
+      .filter((audio): audio is Audio => !!audio);
+
   const handlePlayAudio = (audio: Audio) => {
-    if (state.currentAudio?.id === audio.id && state.isPlaying) {
-      dispatch({ type: 'PAUSE' });
-    } else {
-      dispatch({ type: 'SET_CURRENT_AUDIO', payload: audio });
-      dispatch({ type: 'PLAY' });
-    }
+    const queue = buildQueue();
+    const startIndex = queue.findIndex((item) => item.id === audio.id);
+
+    dispatch({ type: 'SET_QUEUE', payload: { queue, startIndex: startIndex >= 0 ? startIndex : 0 } });
+    dispatch({ type: 'PLAY' });
   };
 
   const handlePlayAll = () => {
-    if (playlist?.items && playlist.items.length > 0) {
-      const firstAudio = playlist.items[0].audio;
-      if (firstAudio) {
-        dispatch({ type: 'SET_CURRENT_AUDIO', payload: firstAudio });
-        dispatch({ type: 'PLAY' });
-      }
-    }
+    const queue = buildQueue();
+    if (queue.length === 0) return;
+
+    dispatch({ type: 'SET_QUEUE', payload: { queue, startIndex: 0 } });
+    dispatch({ type: 'PLAY' });
   };
 
-  const handleRemoveFromPlaylist = async (playlistItemId: string) => {
-    if (!confirm('¿Estás seguro de que quieres quitar este audio de la playlist?')) {
-      return;
-    }
+  const confirmRemoveFromPlaylist = async () => {
+    if (!deleteItemId) return;
 
+    setIsDeleting(true);
     try {
-      const response = await fetch(`/api/playlists/${params.id}/items/${playlistItemId}`, {
+      const response = await fetch(`/api/playlists/${params.id}/items/${deleteItemId}`, {
         method: 'DELETE',
       });
 
@@ -100,6 +107,7 @@ export default function PlaylistDetailPage() {
           description: 'Se quitó el audio de la playlist',
         });
         fetchPlaylist();
+        setDeleteItemId(null);
       } else {
         const error = await response.json();
         toast({
@@ -114,13 +122,15 @@ export default function PlaylistDetailPage() {
         description: 'Error de conexión',
         variant: 'destructive',
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   if (status === 'loading' || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <LoadingSpinner size="lg" text="Cargando playlist..." />
       </div>
     );
   }
@@ -128,33 +138,57 @@ export default function PlaylistDetailPage() {
   if (!playlist) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Playlist no encontrada</h1>
-        <Button onClick={() => router.push('/playlists')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver a mis playlists
-        </Button>
+        <div className="text-center">
+          <div className="relative inline-block mb-6">
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 blur-2xl animate-pulse" />
+            <div className="relative h-20 w-20 mx-auto rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 flex items-center justify-center">
+              <Music className="w-10 h-10 text-purple-600 dark:text-purple-400" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
+            Playlist no encontrada
+          </h1>
+          <Button
+            onClick={() => router.push('/playlists')}
+            className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver a mis playlists
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-background via-purple-50/30 dark:via-purple-950/10 to-background py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Botón volver */}
-        <Button variant="ghost" onClick={() => router.push('/playlists')} className="mb-6">
+        <Button
+          variant="ghost"
+          onClick={() => router.push('/playlists')}
+          className="mb-6 hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-colors duration-300"
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Mis Playlists
         </Button>
 
         {/* Header de la playlist */}
-        <Card className="mb-8">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <CardTitle className="text-2xl">{playlist.name}</CardTitle>
+        <Card className="mb-8 overflow-hidden border-2 hover:border-purple-200 dark:hover:border-purple-900 transition-all duration-300 group relative">
+          {/* Background decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 transform translate-x-32 -translate-y-32 transition-transform duration-500 group-hover:translate-x-24 group-hover:-translate-y-24">
+            <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-500/10 to-pink-500/10 blur-3xl" />
+          </div>
+
+          <CardHeader className="relative">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <CardTitle className="text-3xl md:text-4xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    {playlist.name}
+                  </CardTitle>
                   {playlist.isPublic ? (
-                    <Badge variant="default" className="flex items-center gap-1">
+                    <Badge className="flex items-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
                       <Globe className="w-3 h-3" />
                       Pública
                     </Badge>
@@ -165,31 +199,39 @@ export default function PlaylistDetailPage() {
                     </Badge>
                   )}
                 </div>
-                
+
                 {playlist.description && (
-                  <CardDescription className="text-base mb-4">
+                  <CardDescription className="text-base mb-5 leading-relaxed">
                     {playlist.description}
                   </CardDescription>
                 )}
-                
-                <div className="flex items-center text-sm text-gray-600 gap-4">
-                  <div className="flex items-center">
-                    <Music className="w-4 h-4 mr-1" />
-                    {playlist.items?.length || 0} audios
+
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-purple-100/50 dark:bg-purple-900/20 backdrop-blur-sm">
+                    <Music className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                      {playlist.items?.length || 0} audios
+                    </span>
                   </div>
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-1" />
-                    {playlist.items?.reduce((total, item) => total + (item.audio?.duration || 0), 0) 
-                      ? formatTime(playlist.items.reduce((total, item) => total + (item.audio?.duration || 0), 0))
-                      : '0:00'
-                    } total
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-pink-100/50 dark:bg-pink-900/20 backdrop-blur-sm">
+                    <Clock className="w-4 h-4 text-pink-600 dark:text-pink-400" />
+                    <span className="text-sm font-medium text-pink-900 dark:text-pink-100">
+                      {playlist.items?.reduce((total, item) => total + (item.audio?.duration || 0), 0)
+                        ? formatTime(playlist.items.reduce((total, item) => total + (item.audio?.duration || 0), 0))
+                        : '0:00'
+                      } total
+                    </span>
                   </div>
                 </div>
               </div>
-              
+
               {playlist.items && playlist.items.length > 0 && (
-                <Button onClick={handlePlayAll} size="lg">
-                  <Play className="w-5 h-5 mr-2" />
+                <Button
+                  onClick={handlePlayAll}
+                  size="lg"
+                  className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                >
+                  <Play className="w-5 h-5 mr-2 fill-current" />
                   Reproducir todo
                 </Button>
               )}
@@ -199,16 +241,24 @@ export default function PlaylistDetailPage() {
 
         {/* Lista de audios */}
         {playlist.items && playlist.items.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {playlist.items.map((item) => {
               if (!item.audio) return null;
-              
+
               const audio = item.audio;
               const isCurrentAudio = state.currentAudio?.id === audio.id;
               const isAudioPlaying = isCurrentAudio && state.isPlaying;
-              
+
               return (
-                <Card key={item.id} className="hover:shadow-md transition-shadow">
+                <Card
+                  key={item.id}
+                  className={cn(
+                    "group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 border-2",
+                    isCurrentAudio
+                      ? "border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50/50 via-white to-pink-50/50 dark:from-purple-950/20 dark:via-gray-900 dark:to-pink-950/20"
+                      : "hover:border-purple-100 dark:hover:border-purple-900/30"
+                  )}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
                       {/* Botón de reproducir */}
@@ -216,58 +266,67 @@ export default function PlaylistDetailPage() {
                         variant="outline"
                         size="icon"
                         onClick={() => handlePlayAudio(audio)}
-                        className={isCurrentAudio ? 'bg-blue-50 border-blue-200' : ''}
+                        className={cn(
+                          "h-12 w-12 flex-shrink-0 transition-all duration-300",
+                          isCurrentAudio
+                            ? "bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white border-transparent hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 scale-110"
+                            : "hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:border-purple-300 dark:hover:border-purple-700 hover:scale-110"
+                        )}
                       >
                         {isAudioPlaying ? (
-                          <Pause className="w-4 h-4" />
+                          <Pause className="w-5 h-5" />
                         ) : (
-                          <Play className="w-4 h-4" />
+                          <Play className="w-5 h-5 fill-current" />
                         )}
                       </Button>
-                      
+
                       {/* Imagen/Cover */}
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">
+                      <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden group-hover:scale-105 transition-transform duration-300 shadow-md">
                         {audio.cover?.url ? (
-                          <img 
-                            src={audio.cover.url} 
+                          <img
+                            src={audio.cover.url}
                             alt={audio.title}
-                            className="w-full h-full object-cover rounded-lg"
+                            className="w-full h-full object-cover"
                           />
                         ) : (
-                          audio.title.charAt(0).toUpperCase()
+                          <span className="text-lg">{audio.title.charAt(0).toUpperCase()}</span>
                         )}
                       </div>
-                      
+
                       {/* Información del audio */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900 truncate">
+                        <h3 className={cn(
+                          "font-semibold truncate mb-1 transition-all duration-300",
+                          isCurrentAudio
+                            ? "bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent"
+                            : "text-foreground group-hover:text-purple-600 dark:group-hover:text-purple-400"
+                        )}>
                           {audio.title}
                         </h3>
-                        <div className="flex items-center text-sm text-gray-500 gap-3">
-                          <span>{audio.category.name}</span>
+                        <div className="flex items-center text-sm text-muted-foreground gap-2 flex-wrap">
+                          <Badge variant="secondary" className="text-xs">
+                            {audio.category.name}
+                          </Badge>
                           {audio.duration && (
-                            <>
-                              <span>•</span>
-                              <span>{formatTime(audio.duration)}</span>
-                            </>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {formatTime(audio.duration)}
+                            </span>
                           )}
                           {audio.author && (
-                            <>
-                              <span>•</span>
-                              <span>Por {audio.author}</span>
-                            </>
+                            <span className="truncate">Por {audio.author}</span>
                           )}
                         </div>
                       </div>
-                      
+
                       {/* Botón de eliminar */}
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleRemoveFromPlaylist(item.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setDeleteItemId(item.id)}
+                        className="flex-shrink-0 hover:bg-red-100 dark:hover:bg-red-900/30 hover:border-red-300 dark:hover:border-red-700 hover:scale-110 transition-all duration-300"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                       </Button>
                     </div>
                   </CardContent>
@@ -276,19 +335,34 @@ export default function PlaylistDetailPage() {
             })}
           </div>
         ) : (
-          <Card>
-            <CardContent className="text-center py-12">
-              <Music className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <Card className="border-2 border-dashed border-purple-200 dark:border-purple-800">
+            <CardContent className="text-center py-16">
+              <div className="relative inline-block mb-6">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 blur-2xl animate-pulse" />
+                <div className="relative h-20 w-20 mx-auto rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 flex items-center justify-center">
+                  <Music className="w-10 h-10 text-purple-600 dark:text-purple-400" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
                 Playlist vacía
               </h3>
-              <p className="text-gray-600">
-                Esta playlist no tiene audios aún. Puedes agregar audios desde las páginas de contenido.
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Esta playlist no tiene audios aún. Puedes agregar audios desde las páginas de contenido usando el botón "Agregar a playlist".
               </p>
             </CardContent>
           </Card>
         )}
       </div>
+
+      {/* Delete Playlist Item Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={!!deleteItemId}
+        onOpenChange={(open) => !open && setDeleteItemId(null)}
+        itemName={playlist?.items?.find(item => item.id === deleteItemId)?.audio?.title || ''}
+        itemType="audio de la playlist"
+        onConfirm={confirmRemoveFromPlaylist}
+        loading={isDeleting}
+      />
     </div>
   );
 }

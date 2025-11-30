@@ -94,7 +94,8 @@ export function CategoryContent({ categoryType }: CategoryContentProps) {
     try {
       const response = await fetch('/api/favorites');
       if (response.ok) {
-        const favorites = await response.json();
+        const data = await response.json();
+        const favorites = Array.isArray(data) ? data : data.favorites || [];
         setFavoritedIds(favorites.map((f: any) => f.audioId));
       }
     } catch (error) {
@@ -164,33 +165,51 @@ export function CategoryContent({ categoryType }: CategoryContentProps) {
   const Icon = getCategoryIcon();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center py-12 mb-8"
+        className="relative text-center py-16 mb-8 rounded-2xl overflow-hidden"
         style={{
           background: `linear-gradient(135deg, ${CATEGORY_COLORS[categoryType]}10, ${CATEGORY_COLORS[categoryType]}20)`,
         }}
       >
-        <div 
-          className="inline-flex p-4 rounded-full mb-4"
-          style={{ backgroundColor: `${CATEGORY_COLORS[categoryType]}20` }}
-        >
-          <Icon 
-            className="h-12 w-12"
-            style={{ color: CATEGORY_COLORS[categoryType] }}
+        {/* Animated background blobs */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            className="absolute top-0 left-1/4 w-64 h-64 rounded-full opacity-20 blur-3xl animate-blob"
+            style={{ backgroundColor: CATEGORY_COLORS[categoryType] }}
+          />
+          <div
+            className="absolute top-0 right-1/4 w-64 h-64 rounded-full opacity-20 blur-3xl animate-blob animation-delay-2000"
+            style={{ backgroundColor: CATEGORY_COLORS[categoryType] }}
+          />
+          <div
+            className="absolute bottom-0 left-1/2 w-64 h-64 rounded-full opacity-20 blur-3xl animate-blob animation-delay-4000"
+            style={{ backgroundColor: CATEGORY_COLORS[categoryType] }}
           />
         </div>
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">
-          {CATEGORY_NAMES[categoryType]}
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          {categoryType === 'PODCAST' && 'Descubre contenido inspirador y educativo que transformará tu perspectiva y te ayudará a crecer personal y profesionalmente.'}
-          {categoryType === 'MEDITATION' && 'Encuentra paz interior y equilibrio mental con nuestras meditaciones guiadas diseñadas para todos los niveles.'}
-          {categoryType === 'HYPNOSIS' && 'Transforma patrones mentales limitantes y alcanza tus objetivos con sesiones de autohipnosis profesionales.'}
-        </p>
+
+        <div className="relative z-10">
+          <div
+            className="inline-flex p-6 rounded-full mb-6 shadow-lg backdrop-blur-sm"
+            style={{ backgroundColor: `${CATEGORY_COLORS[categoryType]}30` }}
+          >
+            <Icon
+              className="h-16 w-16 animate-pulse"
+              style={{ color: CATEGORY_COLORS[categoryType] }}
+            />
+          </div>
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+            {CATEGORY_NAMES[categoryType]}
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed px-4">
+            {categoryType === 'PODCAST' && 'Descubre contenido inspirador y educativo que transformará tu perspectiva y te ayudará a crecer personal y profesionalmente.'}
+            {categoryType === 'MEDITATION' && 'Encuentra paz interior y equilibrio mental con nuestras meditaciones guiadas diseñadas para todos los niveles.'}
+            {categoryType === 'HYPNOSIS' && 'Transforma patrones mentales limitantes y alcanza tus objetivos con sesiones de reconexión profesionales.'}
+          </p>
+        </div>
       </motion.div>
 
       {/* Search & Filters */}
@@ -206,14 +225,14 @@ export function CategoryContent({ categoryType }: CategoryContentProps) {
             placeholder="Buscar contenido..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full"
+            className="w-full focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-700 border-2 hover:border-purple-300 dark:hover:border-purple-700 transition-all duration-300"
           />
         </form>
-        
+
         <div className="flex gap-2">
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[180px]">
-              <SortAsc className="h-4 w-4 mr-2" />
+            <SelectTrigger className="w-[180px] border-2 hover:border-purple-300 dark:hover:border-purple-700 transition-all duration-300">
+              <SortAsc className="h-4 w-4 mr-2 text-purple-600 dark:text-purple-400" />
               <SelectValue placeholder="Ordenar por" />
             </SelectTrigger>
             <SelectContent>

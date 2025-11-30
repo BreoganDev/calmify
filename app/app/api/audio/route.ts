@@ -1,13 +1,13 @@
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/audio
-export async function GET(request: NextRequest) {
+export async function GET(request : Request) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
@@ -27,10 +27,12 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
+      // SQLite doesn't support case-insensitive mode in Prisma
+      // Using contains without mode works case-insensitively by default in SQLite
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { author: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search } },
+        { description: { contains: search } },
+        { author: { contains: search } },
       ];
     }
 
@@ -64,7 +66,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/audio (Admin only)
-export async function POST(request: NextRequest) {
+export async function POST(request : Request) {
   try {
     const session = await getServerSession(authOptions);
 

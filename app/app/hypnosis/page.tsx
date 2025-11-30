@@ -4,8 +4,8 @@ import { CategoryContent } from '@/components/category/category-content';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export const metadata = {
-  title: 'Autohipnosis - Calmify',
-  description: 'Transforma tu mente con sesiones de autohipnosis profesionales para el crecimiento personal y bienestar.',
+  title: 'reconexión - Calmify',
+  description: 'Transforma tu mente con sesiones de reconexión profesionales para el crecimiento personal y bienestar.',
 };
 
 export default function HypnosisPage() {

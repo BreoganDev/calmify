@@ -11,9 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useAudio } from '@/contexts/audio-context';
-import { Play, Pause, Heart, Share2, Clock, User, MessageCircle, ArrowLeft, Plus, List } from 'lucide-react';
+import { Play, Pause, Heart, Share2, Clock, User, MessageCircle, ArrowLeft, Plus, List, Trash2 } from 'lucide-react';
 import { Audio, Comment, Playlist } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { AudioDetailSkeleton } from '@/components/ui/skeleton-screens';
 
 const formatTime = (seconds: number | null) => {
   if (!seconds) return '0:00'
@@ -101,6 +102,12 @@ export default function AudioPage() {
   };
 
   const handlePlay = () => {
+    if (!session?.user) {
+      toast.error('Debes iniciar sesión para reproducir');
+      router.push(`/auth?callbackUrl=${encodeURIComponent(window.location.href)}`);
+      return;
+    }
+
     if (audio && state.currentAudio?.id === audio.id && state.isPlaying) {
       dispatch({ type: 'PAUSE' });
     } else if (audio) {
@@ -174,6 +181,28 @@ export default function AudioPage() {
     }
   };
 
+  const handleDeleteComment = async (commentId: string) => {
+    if (!session?.user || session.user.role !== 'ADMIN') return;
+
+    try {
+      const response = await fetch(`/api/audio/${params.id}/comments`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commentId }),
+      });
+
+      if (response.ok) {
+        toast.success('Comentario eliminado');
+        setComments((prev) => prev.filter((c) => c.id !== commentId));
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'No se pudo eliminar');
+      }
+    } catch (error) {
+      toast.error('Error al eliminar comentario');
+    }
+  };
+
   const handleAddToPlaylist = async (playlistId: string) => {
     try {
       const response = await fetch(`/api/playlists/${playlistId}/items`, {
@@ -195,106 +224,159 @@ export default function AudioPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <AudioDetailSkeleton />;
   }
 
   if (!audio) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Audio no encontrado</h1>
-        <Button onClick={() => router.back()}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver
-        </Button>
+        <div className="text-center">
+          <div className="relative inline-block mb-6">
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 blur-2xl animate-pulse" />
+            <div className="relative h-20 w-20 mx-auto rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 flex items-center justify-center">
+              <Play className="w-10 h-10 text-purple-600 dark:text-purple-400" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
+            Audio no encontrado
+          </h1>
+          <Button
+            onClick={() => router.back()}
+            className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-background via-purple-50/30 dark:via-purple-950/10 to-background py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Botón volver */}
-        <Button variant="ghost" onClick={() => router.back()} className="mb-6">
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="mb-6 hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-colors duration-300"
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Volver
         </Button>
 
         {/* Header del audio */}
-        <Card className="mb-8">
-          <CardHeader>
+        <Card className="mb-8 overflow-hidden border-2 hover:border-purple-200 dark:hover:border-purple-900 transition-all duration-300 group relative">
+          {/* Background decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 transform translate-x-32 -translate-y-32 transition-transform duration-500 group-hover:translate-x-24 group-hover:-translate-y-24">
+            <div className="w-full h-full rounded-full bg-gradient-to-br from-purple-500/10 to-pink-500/10 blur-3xl" />
+          </div>
+
+          <CardHeader className="relative">
             <div className="flex flex-col md:flex-row gap-6">
               {/* Imagen de portada */}
               <div className="flex-shrink-0">
-                <div className="w-48 h-48 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-4xl font-bold">
+                <div className="relative w-48 h-48 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white text-4xl font-bold shadow-2xl overflow-hidden group/cover">
                   {audio.cover?.url ? (
-                    <img 
-                      src={audio.cover.url} 
+                    <img
+                      src={audio.cover.url}
                       alt={audio.title}
-                      className="w-full h-full object-cover rounded-lg"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover/cover:scale-110"
                     />
                   ) : (
-                    audio.title.charAt(0).toUpperCase()
+                    <span className="relative z-10">{audio.title.charAt(0).toUpperCase()}</span>
                   )}
+                  {/* Gradient overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover/cover:opacity-100 transition-opacity duration-300" />
                 </div>
               </div>
               
               {/* Información del audio */}
               <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <Badge variant="secondary">{audio.category.name}</Badge>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <Badge
+                    variant="secondary"
+                    className="bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 text-purple-900 dark:text-purple-100 border-purple-200 dark:border-purple-800"
+                  >
+                    {audio.category.name}
+                  </Badge>
                   {audio.duration && (
-                    <Badge variant="outline">
+                    <Badge
+                      variant="outline"
+                      className="backdrop-blur-sm bg-white/50 dark:bg-gray-900/50"
+                    >
                       <Clock className="w-3 h-3 mr-1" />
                       {formatTime(audio.duration)}
                     </Badge>
                   )}
                 </div>
-                
-                <CardTitle className="text-2xl md:text-3xl mb-2">{audio.title}</CardTitle>
-                
+
+                <CardTitle className="text-2xl md:text-3xl mb-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  {audio.title}
+                </CardTitle>
+
                 {audio.author && (
-                  <div className="flex items-center text-gray-600 mb-3">
-                    <User className="w-4 h-4 mr-2" />
-                    {audio.author}
+                  <div className="flex items-center text-muted-foreground mb-4">
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 flex items-center justify-center mr-2">
+                      <User className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <span className="font-medium">{audio.author}</span>
                   </div>
                 )}
-                
+
                 {audio.description && (
-                  <CardDescription className="text-base mb-4">
+                  <CardDescription className="text-base mb-5 leading-relaxed">
                     {audio.description}
                   </CardDescription>
                 )}
 
                 {/* Botones de acción */}
                 <div className="flex flex-wrap gap-3">
-                  <Button onClick={handlePlay} size="lg">
+                  <Button
+                    onClick={handlePlay}
+                    size="lg"
+                    className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                  >
                     {state.currentAudio?.id === audio.id && state.isPlaying ? (
                       <Pause className="w-5 h-5 mr-2" />
                     ) : (
-                      <Play className="w-5 h-5 mr-2" />
+                      <Play className="w-5 h-5 mr-2 fill-current" />
                     )}
                     {state.currentAudio?.id === audio.id && state.isPlaying ? 'Pausar' : 'Reproducir'}
                   </Button>
-                  
+
                   {session?.user && (
                     <>
-                      <Button variant="outline" onClick={handleFavorite}>
-                        <Heart className={`w-4 h-4 mr-2 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
+                      <Button
+                        variant="outline"
+                        onClick={handleFavorite}
+                        className={cn(
+                          "hover:scale-110 transition-all duration-300",
+                          isFavorite
+                            ? "bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/30"
+                            : "hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:border-purple-300 dark:hover:border-purple-700"
+                        )}
+                      >
+                        <Heart className={cn("w-4 h-4 mr-2", isFavorite && "fill-red-500 text-red-500")} />
                         {isFavorite ? 'En favoritos' : 'Favorito'}
                       </Button>
-                      
-                      <Button variant="outline" onClick={() => setIsAddingToPlaylist(!isAddingToPlaylist)}>
+
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsAddingToPlaylist(!isAddingToPlaylist)}
+                        className="hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:border-purple-300 dark:hover:border-purple-700 hover:scale-110 transition-all duration-300"
+                      >
                         <Plus className="w-4 h-4 mr-2" />
                         Agregar a playlist
                       </Button>
                     </>
                   )}
-                  
-                  <Button variant="outline" onClick={handleShare}>
+
+                  <Button
+                    variant="outline"
+                    onClick={handleShare}
+                    className="hover:bg-purple-100 dark:hover:bg-purple-900/20 hover:border-purple-300 dark:hover:border-purple-700 hover:scale-110 transition-all duration-300"
+                  >
                     <Share2 className="w-4 h-4 mr-2" />
                     Compartir
                   </Button>
@@ -333,10 +415,10 @@ export default function AudioPage() {
         </Card>
 
         {/* Sección de comentarios */}
-        <Card>
+        <Card className="border-2 hover:border-purple-200 dark:hover:border-purple-900 transition-all duration-300">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <MessageCircle className="w-5 h-5 mr-2" />
+            <CardTitle className="flex items-center text-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <MessageCircle className="w-6 h-6 mr-2 text-purple-600" />
               Comentarios ({comments.length})
             </CardTitle>
           </CardHeader>
@@ -348,41 +430,71 @@ export default function AudioPage() {
                   placeholder="Escribe tu comentario..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  className="mb-3"
+                  className="mb-3 focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-700 transition-all duration-300"
                 />
-                <Button onClick={handleAddComment} disabled={!newComment.trim()}>
+                <Button
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim()}
+                  className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-all duration-300"
+                >
                   Publicar comentario
                 </Button>
               </div>
             ) : (
-              <p className="text-gray-500 mb-6">Inicia sesión para comentar</p>
+              <div className="mb-6 p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                <p className="text-muted-foreground text-center">Inicia sesión para comentar</p>
+              </div>
             )}
 
             {/* Lista de comentarios */}
             <div className="space-y-4">
               {comments.map((comment) => (
-                <div key={comment.id} className="flex gap-3 p-4 bg-gray-50 rounded-lg">
-                  <Avatar>
-                    <AvatarFallback>
+                <div
+                  key={comment.id}
+                  className="flex gap-3 p-4 rounded-lg bg-gradient-to-br from-purple-50/50 via-white to-pink-50/50 dark:from-purple-950/20 dark:via-gray-900 dark:to-pink-950/20 border border-purple-100 dark:border-purple-900/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
+                >
+                  <Avatar className="ring-2 ring-purple-200 dark:ring-purple-800">
+                    <AvatarFallback className="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white">
                       {comment.user?.name?.charAt(0).toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">{comment.user?.name || 'Usuario'}</span>
-                      <span className="text-sm text-gray-500">
+                      <span className="font-semibold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        {comment.user?.name || 'Usuario'}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
                         {new Date(comment.createdAt).toLocaleDateString()}
                       </span>
+                      {session?.user?.role === 'ADMIN' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 ml-auto"
+                          onClick={() => handleDeleteComment(comment.id)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Borrar
+                        </Button>
+                      )}
                     </div>
-                    <p className="text-gray-700">{comment.content}</p>
+                    <p className="text-foreground leading-relaxed">{comment.content}</p>
                   </div>
                 </div>
               ))}
-              
+
               {comments.length === 0 && (
-                <p className="text-center text-gray-500 py-8">
-                  No hay comentarios aún. ¡Sé el primero en comentar!
-                </p>
+                <div className="text-center py-12">
+                  <div className="relative inline-block mb-4">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 blur-2xl animate-pulse" />
+                    <div className="relative h-16 w-16 mx-auto rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 flex items-center justify-center">
+                      <MessageCircle className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">
+                    No hay comentarios aún. ¡Sé el primero en comentar!
+                  </p>
+                </div>
               )}
             </div>
           </CardContent>

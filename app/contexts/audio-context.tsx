@@ -2,11 +2,19 @@
 'use client'
 
 import { createContext, useContext, useReducer, useRef, useEffect } from 'react'
-import { Audio, Cover, Category } from '@prisma/client'
 
-type AudioWithDetails = Audio & {
-  cover?: Cover | null
-  category: Category
+type AudioWithDetails = {
+  id: string
+  title: string
+  fileUrl?: string
+  description?: string | null
+  duration?: number | null
+  listens?: number | null
+  author?: string | null
+  cover?: { url?: string | null } | null
+  category?: { name: string; color?: string | null } | null
+  categoryId?: string | null
+  [key: string]: any
 }
 
 interface AudioState {
@@ -31,7 +39,7 @@ type AudioAction =
   | { type: 'SET_DURATION'; payload: number }
   | { type: 'SET_VOLUME'; payload: number }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_QUEUE'; payload: AudioWithDetails[] }
+  | { type: 'SET_QUEUE'; payload: { queue: AudioWithDetails[]; startIndex?: number } }
   | { type: 'NEXT_TRACK' }
   | { type: 'PREVIOUS_TRACK' }
   | { type: 'TOGGLE_REPEAT' }
@@ -74,20 +82,33 @@ function audioReducer(state: AudioState, action: AudioAction): AudioState {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload }
     case 'SET_QUEUE':
-      return { ...state, queue: action.payload }
-    case 'NEXT_TRACK':
+      return {
+        ...state,
+        queue: action.payload.queue,
+        currentIndex: action.payload.startIndex ?? 0,
+        currentAudio: action.payload.queue[action.payload.startIndex ?? 0] || null,
+        currentTime: 0,
+      }
+    case 'NEXT_TRACK': {
+      const queueLength = state.queue.length
+      if (queueLength === 0) return state
+
       const nextIndex = state.isShuffle 
-        ? Math.floor(Math.random() * state.queue.length)
-        : (state.currentIndex + 1) % state.queue.length
+        ? Math.floor(Math.random() * queueLength)
+        : (state.currentIndex + 1) % queueLength
       return {
         ...state,
         currentIndex: nextIndex,
         currentAudio: state.queue[nextIndex] || null,
         currentTime: 0,
       }
-    case 'PREVIOUS_TRACK':
+    }
+    case 'PREVIOUS_TRACK': {
+      const queueLength = state.queue.length
+      if (queueLength === 0) return state
+
       const prevIndex = state.currentIndex === 0 
-        ? state.queue.length - 1 
+        ? queueLength - 1 
         : state.currentIndex - 1
       return {
         ...state,
@@ -95,6 +116,7 @@ function audioReducer(state: AudioState, action: AudioAction): AudioState {
         currentAudio: state.queue[prevIndex] || null,
         currentTime: 0,
       }
+    }
     case 'TOGGLE_REPEAT':
       return { ...state, isRepeat: !state.isRepeat }
     case 'TOGGLE_SHUFFLE':
@@ -152,7 +174,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('loadeddata', handleLoadedData)
       audio.removeEventListener('ended', handleEnded)
     }
-  }, [state.isRepeat])
+  }, [state.isRepeat, state.queue, state.currentIndex, state.isShuffle])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -162,7 +184,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     audio.playbackRate = state.playbackRate
 
     if (state.currentAudio) {
-      audio.src = state.currentAudio.fileUrl
+      audio.src = state.currentAudio.fileUrl || ''
       if (state.isPlaying) {
         audio.play().catch(console.error)
       }

@@ -5,9 +5,31 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { HomeContent } from '@/components/home/home-content'
 import { HomeHero } from '@/components/home/home-hero'
-import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { HeroSkeleton, AudioGridSkeleton } from '@/components/ui/skeleton-screens'
+import { NewsletterSignup } from '@/components/home/newsletter-signup'
 
 export const dynamic = 'force-dynamic'
+
+// Loading component mejorado para Home
+function HomeLoadingState() {
+  return (
+    <div className="min-h-screen">
+      <HeroSkeleton />
+      <div className="container mx-auto px-4 py-8 space-y-12">
+        {/* Featured section */}
+        <div className="space-y-4">
+          <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+          <AudioGridSkeleton count={6} />
+        </div>
+        {/* Recent section */}
+        <div className="space-y-4">
+          <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+          <AudioGridSkeleton count={8} />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 async function getHomeData() {
   const [featuredAudios, categories, recentAudios] = await Promise.all([
@@ -52,8 +74,11 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen">
       <HomeHero />
-      <Suspense fallback={<LoadingSpinner />}>
-        <HomeContent 
+      <div className="mt-[-4rem] mb-12">
+        <NewsletterSignup />
+      </div>
+      <Suspense fallback={<HomeLoadingState />}>
+        <HomeContent
           {...homeData}
           session={session}
         />

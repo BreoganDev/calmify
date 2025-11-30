@@ -1,11 +1,12 @@
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { logEvent } from '@/lib/analytics';
 
 export async function GET(
-  request: NextRequest,
+  request : Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -34,7 +35,7 @@ export async function GET(
 }
 
 export async function POST(
-  request: NextRequest,
+  request : Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -96,9 +97,55 @@ export async function POST(
       },
     });
 
+    logEvent('COMMENT_CREATED' as any, {
+      userId: user.id,
+      audioId: params.id,
+      metadata: { content: content.trim() },
+    }).catch(() => {});
+
     return NextResponse.json(comment, { status: 201 });
   } catch (error) {
     console.error('Error creating comment:', error);
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request : Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const { commentId } = await request.json();
+
+    if (!commentId) {
+      return NextResponse.json({ error: 'Falta commentId' }, { status: 400 });
+    }
+
+    const existing = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: { audioId: true },
+    });
+
+    if (!existing || existing.audioId !== params.id) {
+      return NextResponse.json({ error: 'Comentario no encontrado' }, { status: 404 });
+    }
+
+    await prisma.comment.delete({
+      where: { id: commentId },
+    });
+
+    return NextResponse.json({ message: 'Comentario eliminado' });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

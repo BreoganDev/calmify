@@ -1,0 +1,12 @@
+      const res = await fetch('/api/admin/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(campaignForm),
+      });
+      if (!res.ok) throw new Error('Error al guardar campaña');
+      toast.success(campaignForm.sendNow ? '📧 Campaña creada y enviada exitosamente' : '📝 Campaña guardada como borrador');
+      setCampaignForm({ name: '', subject: '', body: '', sendNow: true, testEmail: '', selectedTags: [] });
+      setShowPreview(false);
+      fetchData();
+    } catch (err) {
+      toast.error('Error al guardar la campaña');

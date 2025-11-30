@@ -1,39 +1,74 @@
-
-import { PrismaClient, CategoryType, Role } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Empezando el seeding...');
+  console.log('Empezando el seeding...');
 
-  // Crear administrador inicial
-  const hashedPassword = await bcrypt.hash('admin123', 12);
-  
+  // Get credentials from environment variables
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@example.com';
+  const adminPasswordPlain = process.env.SEED_ADMIN_PASSWORD || 'ChangeThisPassword123!';
+  const adminName = process.env.SEED_ADMIN_NAME || 'Admin User';
+  const userEmail = process.env.SEED_USER_EMAIL || 'user@example.com';
+  const userPasswordPlain = process.env.SEED_USER_PASSWORD || 'ChangeThisPassword456!';
+  const userName = process.env.SEED_USER_NAME || 'Test User';
+
+  // Admin user
+  const adminPassword = await bcrypt.hash(adminPasswordPlain, 12);
+
   const admin = await prisma.user.upsert({
-    where: { email: 'diegofernandezgoas@gmail.com' },
-    update: {},
+    where: { email: adminEmail },
+    update: {
+      password: adminPassword,
+      role: 'ADMIN',
+      name: adminName,
+      emailVerified: new Date(),
+    },
     create: {
-      email: 'diegofernandezgoas@gmail.com',
-      name: 'Diego Fernández',
-      role: Role.ADMIN,
-      password: hashedPassword,
+      email: adminEmail,
+      name: adminName,
+      role: 'ADMIN',
+      password: adminPassword,
+      emailVerified: new Date(),
     },
   });
 
-  console.log('👤 Administrador creado:', admin.email);
+  console.log('Administrador creado:', admin.email);
 
-  // Crear categorías principales
+  // Standard user
+  const userPassword = await bcrypt.hash(userPasswordPlain, 12);
+
+  const standardUser = await prisma.user.upsert({
+    where: { email: userEmail },
+    update: {
+      password: userPassword,
+      name: userName,
+      role: 'USER',
+      emailVerified: new Date(),
+    },
+    create: {
+      email: userEmail,
+      name: userName,
+      role: 'USER',
+      password: userPassword,
+      emailVerified: new Date(),
+    },
+  });
+
+  console.log('Usuario creado/actualizado:', standardUser.email);
+
+  // Categorias principales
   const podcastCategory = await prisma.category.upsert({
     where: { name: 'Podcasts' },
     update: {},
     create: {
       name: 'Podcasts',
-      description: 'Conversaciones inspiradoras y contenido educativo sobre maternidad consciente',
-      type: CategoryType.PODCAST,
+      description: 'Conversaciones inspiradoras y contenido educativo sobre calma consciente',
+      type: 'PODCAST',
       color: '#3B82F6',
       icon: 'Mic',
-      canDelete: false
+      canDelete: false,
     },
   });
 
@@ -42,38 +77,38 @@ async function main() {
     update: {},
     create: {
       name: 'Meditaciones',
-      description: 'Prácticas de mindfulness y meditación para madres',
-      type: CategoryType.MEDITATION,
+      description: 'Practicas de mindfulness y meditacion para madres',
+      type: 'MEDITATION',
       color: '#10B981',
       icon: 'Heart',
-      canDelete: false
+      canDelete: false,
     },
   });
 
   const hypnosisCategory = await prisma.category.upsert({
-    where: { name: 'Autohipnosis' },
+    where: { name: 'reconexión' },
     update: {},
     create: {
-      name: 'Autohipnosis',
-      description: 'Sesiones de autohipnosis para relajación profunda y bienestar',
-      type: CategoryType.HYPNOSIS,
+      name: 'reconexión',
+      description: 'Sesiones de reconexión para relajacion profunda y bienestar',
+      type: 'HYPNOSIS',
       color: '#8B5CF6',
       icon: 'Brain',
-      canDelete: false
+      canDelete: false,
     },
   });
 
-  console.log('📂 Categorías creadas');
+  console.log('Categorias creadas');
 
-  // Crear carátulas de ejemplo
-  const covers = await Promise.all([
+  // Caratulas de ejemplo
+  await Promise.all([
     prisma.cover.upsert({
       where: { id: 'cover-1' },
       update: {},
       create: {
         id: 'cover-1',
         filename: 'podcast-cover-1.jpg',
-        originalName: 'Maternidad Consciente Cover',
+        originalName: 'calma consciente Cover',
         mimeType: 'image/jpeg',
         size: 150000,
         width: 400,
@@ -87,7 +122,7 @@ async function main() {
       create: {
         id: 'cover-2',
         filename: 'meditation-cover-1.jpg',
-        originalName: 'Meditación Prenatal Cover',
+        originalName: 'Meditacion Prenatal Cover',
         mimeType: 'image/jpeg',
         size: 160000,
         width: 400,
@@ -101,7 +136,7 @@ async function main() {
       create: {
         id: 'cover-3',
         filename: 'hypnosis-cover-1.jpg',
-        originalName: 'Relajación Profunda Cover',
+        originalName: 'Relajacion Profunda Cover',
         mimeType: 'image/jpeg',
         size: 140000,
         width: 400,
@@ -111,15 +146,15 @@ async function main() {
     }),
   ]);
 
-  console.log('🖼️ Carátulas creadas');
+  console.log('Caratulas creadas');
 
-  // Crear contenido de ejemplo
+  // Contenido de ejemplo
   const sampleAudios = [
     {
       title: 'Bienvenida a Maternidad en Calma',
-      description: 'Un episodio introductorio sobre cómo encontrar la paz interior durante el embarazo y la maternidad.',
-      duration: 1200, // 20 minutos
-      fileUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav', // URL de ejemplo
+      description: 'Un episodio introductorio sobre como encontrar la paz interior durante el embarazo y la maternidad.',
+      duration: 1200,
+      fileUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
       fileSize: 12000000,
       coverId: 'cover-1',
       categoryId: podcastCategory.id,
@@ -128,9 +163,9 @@ async function main() {
       listens: 45,
     },
     {
-      title: 'Conectando con tu bebé',
-      description: 'Técnicas de conexión emocional con tu bebé durante el embarazo.',
-      duration: 900, // 15 minutos
+      title: 'Conectando con tu bebe',
+      description: 'Tecnicas de conexion emocional con tu bebe durante el embarazo.',
+      duration: 900,
       fileUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
       fileSize: 9000000,
       coverId: 'cover-1',
@@ -140,9 +175,9 @@ async function main() {
       listens: 32,
     },
     {
-      title: 'Meditación para el Primer Trimestre',
-      description: 'Una meditación guiada especialmente diseñada para las primeras etapas del embarazo.',
-      duration: 1800, // 30 minutos
+      title: 'Meditacion para el Primer Trimestre',
+      description: 'Una meditacion guiada especialmente diseniada para las primeras etapas del embarazo.',
+      duration: 1800,
       fileUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
       fileSize: 18000000,
       coverId: 'cover-2',
@@ -152,9 +187,9 @@ async function main() {
       listens: 67,
     },
     {
-      title: 'Respiración Consciente para Madres',
-      description: 'Aprende técnicas de respiración que te ayudarán en momentos de estrés.',
-      duration: 600, // 10 minutos
+      title: 'Respiracion Consciente para Madres',
+      description: 'Aprende tecnicas de respiracion que te ayudaran en momentos de estres.',
+      duration: 600,
       fileUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
       fileSize: 6000000,
       coverId: 'cover-2',
@@ -164,9 +199,9 @@ async function main() {
       listens: 89,
     },
     {
-      title: 'Relajación Profunda para el Sueño',
-      description: 'Una sesión de autohipnosis para ayudarte a descansar mejor durante el embarazo.',
-      duration: 2400, // 40 minutos
+      title: 'Relajacion Profunda para el Sueno',
+      description: 'Una sesion de reconexión para ayudarte a descansar mejor durante el embarazo.',
+      duration: 2400,
       fileUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
       fileSize: 24000000,
       coverId: 'cover-3',
@@ -176,9 +211,9 @@ async function main() {
       listens: 23,
     },
     {
-      title: 'Preparación Mental para el Parto',
-      description: 'Autohipnosis para crear confianza y tranquilidad antes del gran día.',
-      duration: 1500, // 25 minutos
+      title: 'Preparacion Mental para el Parto',
+      description: 'reconexión para crear confianza y tranquilidad antes del gran dia.',
+      duration: 1500,
       fileUrl: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
       fileSize: 15000000,
       coverId: 'cover-3',
@@ -191,37 +226,37 @@ async function main() {
 
   for (const audioData of sampleAudios) {
     await prisma.audio.upsert({
-      where: { id: `audio-${audioData.title.toLowerCase().replace(/\s+/g, '-')}` },
+      where: { id: `audio-${audioData.title.toLowerCase().replace(/\\s+/g, '-')}` },
       update: {},
       create: {
-        id: `audio-${audioData.title.toLowerCase().replace(/\s+/g, '-')}`,
+        id: `audio-${audioData.title.toLowerCase().replace(/\\s+/g, '-')}`,
         ...audioData,
       },
     });
   }
 
-  console.log('🎵 Contenido de audio creado');
+  console.log('Contenido de audio creado');
 
-  // Crear usuario de ejemplo
+  // Usuario de ejemplo
   const testUser = await prisma.user.upsert({
     where: { email: 'usuario@ejemplo.com' },
     update: {},
     create: {
       email: 'usuario@ejemplo.com',
       name: 'Usuario Ejemplo',
-      role: Role.USER,
+      role: 'USER',
       password: await bcrypt.hash('usuario123', 12),
     },
   });
 
-  console.log('👥 Usuario de ejemplo creado');
+  console.log('Usuario de ejemplo creado');
 
-  console.log('✅ Seeding completado exitosamente!');
+  console.log('Seeding completado exitosamente!');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error durante el seeding:', e);
+    console.error('Error durante el seeding:', e);
     process.exit(1);
   })
   .finally(async () => {

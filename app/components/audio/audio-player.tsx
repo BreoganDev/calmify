@@ -172,7 +172,7 @@ export function AudioPlayer() {
             <div className="min-w-0 flex-1">
               <h4 className="text-sm font-medium truncate">{currentAudio.title}</h4>
               <p className="text-xs text-muted-foreground truncate">
-                {currentAudio.author} • {currentAudio.category.name}
+                {currentAudio.author} • {currentAudio.category?.name}
               </p>
             </div>
           </div>

@@ -1,8 +1,9 @@
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
+import { logEvent } from '@/lib/analytics';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,7 @@ export async function GET() {
 }
 
 // POST /api/listens
-export async function POST(request: NextRequest) {
+export async function POST(request : Request) {
   try {
     const session = await getServerSession(authOptions);
     const { audioId, progress = 0, completed = false } = await request.json();
@@ -92,6 +93,12 @@ export async function POST(request: NextRequest) {
           },
         });
       }
+
+      logEvent('PLAY' as any, {
+        userId: session.user.id,
+        audioId,
+        metadata: { progress, completed },
+      }).catch(() => {});
     }
 
     return NextResponse.json({ message: 'Reproducción registrada' });
